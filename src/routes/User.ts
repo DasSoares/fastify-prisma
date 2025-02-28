@@ -36,6 +36,13 @@ export async function userRoutes(server: FastifyInstance) {
         tags: ["user"],
         summary: "User list",
         description: "Lista de usuários",
+        querystring: {
+          type: "object",
+          properties: {
+            limit: { type: "number" },
+            page: { type: "number" },
+          },
+        },
         response: {
           200: {
             type: "array",
