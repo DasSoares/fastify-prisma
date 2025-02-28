@@ -1,12 +1,9 @@
-import Fastify from "fastify";
+import Fastify, { FastifyReply, FastifyRequest } from "fastify";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
 import { fastifyCors } from "@fastify/cors";
 import logger from "./logger";
 
-// Prisma
-import UserDB from "./src/controllers/UserDB";
-import { PrismaClient } from "@prisma/client";
 import { userRoutes } from "./src/routes/User";
 
 const URL = "127.0.0.1";
@@ -29,37 +26,48 @@ const envToLogger = {
 
 const server = Fastify({
   // ignoreTrailingSlash: true,
-  logger: true,
+  logger: {
+    level: 'error',
+    file: './logs/error.log',
+  },
   // logger: envToLogger["development"] ?? true,
 }); //.withTypeProvider<JsonSchemaToTsProvider>();
 
 server.register(fastifyCors, {
-  origin: ["*", "http://127.0.0.1"],
+  origin: ["*", `http://${URL}`],
 });
 server.register(logger);
 server.register(
-  fastifySwagger
-  // não está funcionando
-  //   {
-  //   routePrefix: '/documentation',
-  //   swagger: {
-  //     info: {
-  //       title: 'Fastify API',
-  //       description: 'API documentation',
-  //       version: '1.0.0'
-  //     },
-  //     host: 'localhost:3000',
-  //     schemes: ['http'],
-  //     consumes: ['application/json'],
-  //     produces: ['application/json']
-  //   },
-  //   exposeRoute: true
-  // }
+  fastifySwagger, {
+    openapi: {
+      openapi: '3.0.0',
+      info: {
+        title: 'Exemplo Fastify API',
+        description: 'Uma api de teste com Fastify + Prisma',
+        version: '1.0.0',
+      },
+      servers: [
+        { url: `http://${URL}:${PORT}`, description: 'Servidor Local'},
+      ]
+    },
+    // host: 'localhost:3000',
+    // schemes: ['http'],
+    // swagger: {
+      // uiConfig: {
+      //   docExpansion: 'none', // Controla o comportamento do Swagger UI
+      //   deepLinking: false, 
+      // },
+      // uiHooks: {
+      //   onRequest: function (request: FastifyRequest, reply: FastifyReply) {},
+      //   preHandler: function (request: FastifyRequest, reply: FastifyReply) {},
+      // },
+      // staticCSP: true,
+      // exposeRoute: true,
+    // },
+  },
 );
 server.register(fastifySwaggerUi);
 
-// registra as rotas
-server.register(userRoutes, { prefix: "/user" });
 
 async function sleep(sec: number) {
   return await new Promise((resolve) =>
@@ -69,19 +77,23 @@ async function sleep(sec: number) {
   );
 }
 
-server.get("/ping2", async (request, reply) => {
-  await sleep(10);
-  reply.send({ ping: "pong" });
-});
-
-server.get("/ping", (request, reply) => {
-  setTimeout(() => {
-    reply.send({ ping: "pong" });
-  }, 10000);
-});
-
+// registra as rotas
+server.register(userRoutes, { prefix: "/user" });
+server.register(async () => {
+  server.get(
+    "/ping", 
+    {
+      schema: {
+        tags: ["default"],
+      }
+    },
+    async (request, reply) => {
+      reply.send({ ping: "pong" });
+    });
+}, { prefix: "default" })
+  
 server
-  .listen({ port: PORT })
+  .listen({ host: URL, port: PORT })
   .then(() => {
     console.log("HTTP server running in the port:", PORT);
   })
