@@ -24,55 +24,99 @@ type User = {
 type UserCreate = Pick<User, "name" | "email">;
 type UserUpdate = Pick<User, "name" | "email">;
 
-const opts = {
-  schema: {
-    response: {
-      200: {
-        type: "object",
-        properties: {
-          id: { type: "number" },
-          name: { type: "string" },
-          email: { type: "string" },
-        },
-      },
-      404: {
-        type: "object",
-        properties: {
-          message: { type: "string" },
-        },
-      },
-    },
-  },
-};
-
 const prisma = new PrismaClient();
 
 export async function userRoutes(server: FastifyInstance) {
   //
   //#region Todos os usuarios
-  server.get("/", async (request: FastifyRequest, reply: FastifyReply) => {
-    const users: User[] = await prisma.user.findMany();
-    if (!users) {
-      return reply.code(404).send({ message: "Usuários não encontrado" });
-    }
-    reply.send(users).status(200);
+  server.get(
+    "/",
+    {
+      schema: {
+        tags: ["user"],
+        summary: "User list",
+        description: "Lista de usuários",
+        response: {
+          200: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "number" },
+                name: { type: "string" },
+                email: { type: "string" },
+              },            
+            }
+          },
+          404: {
+            type: "object",
+            properties: {
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async (
+      request: FastifyRequest<{
+        Querystring: { 
+          limit: number, 
+          page: number, 
+        },
+      }>,
+      reply: FastifyReply
+    ) => {
+      let { limit, page } = request.query;
+      
+      if (!limit) limit = await prisma.user.count()
+      if (!page) page = 0
+      
+      page = Number(page) * Number(limit)
+
+      const users: User[] = await prisma.user.findMany({
+        take: Number(limit),
+        skip: Number(page),
+      });
+      
+      if (!users) {
+        reply.code(404).send({ message: "Usuários não encontrado" });
+      }
+      reply.send(users).status(200);
   });
   //#endregion
 
   server.get(
     "/:id",
-    opts,
+    {
+      schema: {
+        tags: ["user"],
+        summary: "Get User By Id",
+        description: "Obtém os dados do usuário",
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              id: { type: "number" },
+              name: { type: "string" },
+              email: { type: "string" },
+            },
+          },
+          404: {
+            type: "object",
+            properties: {
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
     async (
       request: FastifyRequest<{
         Params: UserPathParams;
-        // Querystring: UserQueryParams;
       }>,
       reply: FastifyReply
     ) => {
       const { id } = request.params;
-      // const { echo } = request.query;
-      // console.log(echo);
-      // console.log(request.query);
 
       const db = new UserDB();
       const user = await db.GetById(parseInt(id));
@@ -86,6 +130,33 @@ export async function userRoutes(server: FastifyInstance) {
   // ----- separator
   server.post(
     "/",
+    {
+      schema: {
+        tags: ["user"],
+        summary: "Create User",
+        description: "Cria usuário",
+        body: {
+          type: 'object',
+          required: ["name", "email"],
+          properties: {
+            name: { type: 'string' },
+            email: { type: 'string' },
+            // teste: { type: 'string' } // opcional
+          }
+        },
+        response: {
+          201: {
+            description: "Usuário criado com sucesso!", // I don`t think that`s it means about no content (204)
+          },
+          404: {
+            type: "object",
+            properties: {
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
     async (
       request: FastifyRequest<{ Body: UserCreate }>,
       reply: FastifyReply
@@ -93,19 +164,44 @@ export async function userRoutes(server: FastifyInstance) {
       const prisma = new PrismaClient();
       const body = request.body;
 
-      await prisma.user.create({
-        data: {
-          name: body.name,
-          email: body.email,
-        },
-      });
-      reply.send().status(201);
+      try {
+        const user = await prisma.user.create({
+          data: {
+            name: body.name,
+            email: body.email,
+          },
+        });
+      } catch (error: any) {
+        console.log(error)
+        reply.code(500).send({message: "Erro ao buscar ou inserir no banco de dados!"})
+      }
+      reply.send(null).status(201);
     }
   );
 
   // Altera o registro - Update
   server.put(
     "/:id",
+    {
+      schema: {
+        tags: ["user"],
+        summary: "Update User",
+        description: "Edita o registro do usuário no banco de dados",
+        body: {
+          type: "object",
+          required: ["name", "email"],
+          properties: {
+            name: { type: "string" },
+            email: { type: "string" },
+          }
+        },
+        response: {
+          204: {
+            description: "Usuário modificado com sucesso"
+          }
+        }
+      }
+    },
     async (
       request: FastifyRequest<{
         Params: Pick<User, "id">;
@@ -128,7 +224,7 @@ export async function userRoutes(server: FastifyInstance) {
           error?.meta?.cause ||
           "Erro ao bucar ou alterar informação no banco de dados";
         reply.code(400).send({
-          error: `Erro ao alterar o registro do usuário, erro: ${cause}`,
+          message: `Erro ao alterar o registro do usuário, erro: ${cause}`,
         });
       }
     }
@@ -136,6 +232,18 @@ export async function userRoutes(server: FastifyInstance) {
 
   server.delete(
     "/:id",
+    {
+      schema: {
+        tags: ["user"],
+        summary: "Delete User",
+        description: "Deleta o registro do usuário no banco de dados",
+        response: {
+          204: {
+            description: "Usuário deletado com sucesso"
+          }
+        }
+      }
+    },
     async (
       request: FastifyRequest<{
         Params: Pick<User, "id">;
@@ -144,12 +252,20 @@ export async function userRoutes(server: FastifyInstance) {
     ) => {
       const { id } = request.params;
       // delete retorna os dados do usuário que foi excluído
-      const user = await prisma.user.delete({
-        where: {
-          id: Number(id),
-        },
-      });
-      reply.code(204).send();
+      try {
+        const user = await prisma.user.delete({
+          where: {
+            id: Number(id),
+          },
+        });
+        
+        reply.code(204).send();
+      } catch (error: any) {
+        let cause: string = error?.meta?.cause || "Erro ao bucar ou alterar informação no banco de dados";
+        reply.code(500).send({
+          message: `Erro ao alterar o registro do usuário, erro: ${cause}`,
+        });
+      }
     }
   );
 }
