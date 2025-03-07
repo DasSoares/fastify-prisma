@@ -3,19 +3,6 @@ import { PrismaClient } from "@prisma/client";
 import UserDB from "../controllers/UserDB";
 
 // your code here
-type UserPathParams = {
-  id: string;
-};
-
-type UserQueryParams = {
-  echo: string;
-};
-
-// type UserCreate = {
-//   name: string;
-//   email: string;
-// };
-
 type User = {
   id: number;
   name: string;
@@ -119,18 +106,20 @@ export async function userRoutes(server: FastifyInstance) {
     },
     async (
       request: FastifyRequest<{
-        Params: UserPathParams;
+        Params: Pick<User, "id">;
       }>,
       reply: FastifyReply
     ) => {
       const { id } = request.params;
 
       const db = new UserDB();
-      const user = await db.GetById(parseInt(id));
+      const user = await db.GetById(Number(id));
 
       if (!user) {
+        request.log.error("Usuário não encontrado")
         reply.code(404).send({ message: "Usuário não encontrado" });
       }
+      request.log.info(user, "Usuário encontrado")
       reply.send(user).status(200);
     }
   );
@@ -182,6 +171,7 @@ export async function userRoutes(server: FastifyInstance) {
         console.log(error)
         reply.code(500).send({message: "Erro ao buscar ou inserir no banco de dados!"})
       }
+      console.log("cheguei")
       reply.send(null).status(201);
     }
   );
