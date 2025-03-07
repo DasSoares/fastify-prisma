@@ -1,3 +1,23 @@
+
+# Fastify Prisma
+Uma API de aprendizado juntando o framework nodejs Fastify e banco de dados Postgres com Prisma. Nesta API é utilizada o Swagger como documentação da API.
+
+## Prisma
+### Variáveis de ambiente
+No arquivo `.env` adiciona a variável `DATABASE_URL` com o valor do banco de dados
+exemplo `DATABASE_URL="postgresql://danilo:1234@localhost:5432/meubanco?schema=public"`
+
+## Inicialização do banco
+No prisma caso não tenha a pasta `prisma` rode o comando abaixo para iniciar a conexão com o banco e criar as migrates
+> npx prisma init
+
+Após isso, rode o comando para migrar os dados do arquivo `schema.prisma`, lembrando que neste arquivo você cria os modelos de tabelas
+> npx prisma migrate dev
+> npx prisma migrate dev --name init (não sei sobre, pesquisar depois)
+
+
+
+
 my-fastify-app/
 │
 ├── src/
