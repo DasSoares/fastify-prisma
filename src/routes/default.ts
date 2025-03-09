@@ -1,4 +1,6 @@
 import { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
+import { schemaSuccess } from '../schemas'
+
 
 export async function defaultRoutes(server: FastifyInstance) {
   server.get(
@@ -7,13 +9,7 @@ export async function defaultRoutes(server: FastifyInstance) {
       schema: {
         tags: ["default"],
         response: {
-          200: {
-            type: "object",
-            properties: {
-              message: { type: "string" },
-            },
-            required: ["message"],
-          },
+          200: schemaSuccess,
         },
       },
     },
