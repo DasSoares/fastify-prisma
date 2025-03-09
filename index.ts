@@ -6,6 +6,7 @@ import logger from "./logger";
 
 import { userRoutes } from "./src/routes/User";
 import { defaultRoutes } from "./src/routes/default";
+import { schemaAPIResponseError } from './src/schemas'
 
 const URL = "127.0.0.1";
 const PORT = 3000;
@@ -38,11 +39,11 @@ const server = Fastify({
           options: { destination: "./logs/warn.log" },
           level: "warn",
         },
-        {
-          target: "pino/file",
-          options: { destination: "./logs/error.log" },
-          level: "error",
-        },
+        // {
+        //   target: "pino/file",
+        //   options: { destination: "./logs/error.log" },
+        //   level: "error",
+        // },
       ],
     },
   },
@@ -63,7 +64,7 @@ server.register(fastifySwagger, {
     servers: [{ url: `http://${URL}:${PORT}`, description: "Servidor Local" }],
   },
   swagger: {
-    host: "localhost:3000",
+    host: "127.0.0.1:3000",
     schemes: ["http", "https"],
     consumes: ["application/json"],
     produces: ["application/json"],
@@ -83,15 +84,9 @@ server.register(fastifySwaggerUi, {
   routePrefix: "/docs",
 });
 
-async function sleep(sec: number) {
-  return await new Promise((resolve) =>
-    setTimeout(() => {
-      resolve({ message: "Dados retornado com sucesso!" });
-    }, sec * 1000)
-  );
-}
 
-// server.addSchema()
+// Adição dos schemas
+server.addSchema(schemaAPIResponseError)
 
 // registra as rotas
 server.register(defaultRoutes, { prefix: "/" });
