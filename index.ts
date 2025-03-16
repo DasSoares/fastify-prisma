@@ -6,7 +6,8 @@ import logger from "./logger";
 
 import { userRoutes } from "./src/routes/User";
 import { defaultRoutes } from "./src/routes/default";
-import { schemaAPIResponseError } from './src/schemas'
+import { schemaAPIResponseError } from "./src/schemas";
+import { schemaUser, schemaUsers } from "./src/schemas/User";
 
 const URL = "127.0.0.1";
 const PORT = 3000;
@@ -33,6 +34,10 @@ const server = Fastify({
   logger: {
     level: "warn",
     transport: {
+      options: {
+        translateTime: "HH:MM:ss Z",
+        ignore: "pid,hostname",
+      },
       targets: [
         {
           target: "pino/file",
@@ -84,9 +89,10 @@ server.register(fastifySwaggerUi, {
   routePrefix: "/docs",
 });
 
-
 // Adição dos schemas
-server.addSchema(schemaAPIResponseError)
+server.addSchema(schemaAPIResponseError);
+server.addSchema(schemaUser);
+server.addSchema(schemaUsers);
 
 // registra as rotas
 server.register(defaultRoutes, { prefix: "/" });

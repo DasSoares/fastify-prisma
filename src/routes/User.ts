@@ -1,8 +1,21 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { PrismaClient } from "@prisma/client";
 import UserDB from "../controllers/UserDB";
+import { schemaUser, schemaUsers } from "../schemas/User";
+import { UserController } from "../controllers/User";
 
 // your code here
+const schema = {
+  $id: "User",
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    name: { type: "string" },
+    email: { type: "string" },
+  },
+  required: ["id", "name", "email"],
+};
+
 type User = {
   id: number;
   name: string;
@@ -15,6 +28,7 @@ const prisma = new PrismaClient();
 
 export async function userRoutes(server: FastifyInstance) {
   //
+  const userController = new UserController();
   //#region Todos os usuarios
   server.get(
     "/",
@@ -31,52 +45,12 @@ export async function userRoutes(server: FastifyInstance) {
           },
         },
         response: {
-          200: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "number" },
-                name: { type: "string" },
-                email: { type: "string" },
-              },            
-            }
-          },
-          404: {
-            type: "object",
-            properties: {
-              message: { type: "string" },
-            },
-          },
+          200: schemaUsers,
         },
       },
     },
-    async (
-      request: FastifyRequest<{
-        Querystring: { 
-          limit: number, 
-          page: number, 
-        },
-      }>,
-      reply: FastifyReply
-    ) => {
-      let { limit, page } = request.query;
-      
-      if (!limit) limit = await prisma.user.count()
-      if (!page) page = 0
-      
-      page = Number(page) * Number(limit)
-
-      const users: User[] = await prisma.user.findMany({
-        take: Number(limit),
-        skip: Number(page),
-      });
-      
-      if (!users) {
-        reply.code(404).send({ message: "Usuários não encontrado" });
-      }
-      reply.send(users).status(200);
-  });
+    userController.AllOrPaginated.bind(userController),
+  );
   //#endregion
 
   server.get(
@@ -87,14 +61,7 @@ export async function userRoutes(server: FastifyInstance) {
         summary: "Get User By Id",
         description: "Obtém os dados do usuário",
         response: {
-          200: {
-            type: "object",
-            properties: {
-              id: { type: "number" },
-              name: { type: "string" },
-              email: { type: "string" },
-            },
-          },
+          200: schemaUser,
           404: {
             type: "object",
             properties: {
@@ -104,24 +71,7 @@ export async function userRoutes(server: FastifyInstance) {
         },
       },
     },
-    async (
-      request: FastifyRequest<{
-        Params: Pick<User, "id">;
-      }>,
-      reply: FastifyReply
-    ) => {
-      const { id } = request.params;
-
-      const db = new UserDB();
-      const user = await db.GetById(Number(id));
-
-      if (!user) {
-        request.log.error("Usuário não encontrado")
-        reply.code(404).send({ message: "Usuário não encontrado" });
-      }
-      request.log.info(user, "Usuário encontrado")
-      reply.send(user).status(200);
-    }
+    userController.Get.bind(userController)
   );
   // ----- separator
   server.post(
@@ -132,48 +82,29 @@ export async function userRoutes(server: FastifyInstance) {
         summary: "Create User",
         description: "Cria usuário",
         body: {
-          type: 'object',
+          type: "object",
           required: ["name", "email"],
           properties: {
-            name: { type: 'string' },
-            email: { type: 'string' },
-            // teste: { type: 'string' } // opcional
-          }
+            name: { type: "string" },
+            email: { type: "string" },
+          },
         },
         response: {
           201: {
-            description: "Usuário criado com sucesso!", // I don`t think that`s it means about no content (204)
+            description: "User created",
+            type: "null",
           },
-          404: {
+          500: {
+            description: "Internal Server Error",
             type: "object",
             properties: {
-              message: { type: "string" },
-            },
-          },
+              message: { type: "string" }
+            }
+          }
         },
       },
     },
-    async (
-      request: FastifyRequest<{ Body: UserCreate }>,
-      reply: FastifyReply
-    ) => {
-      const prisma = new PrismaClient();
-      const body = request.body;
-
-      try {
-        const user = await prisma.user.create({
-          data: {
-            name: body.name,
-            email: body.email,
-          },
-        });
-      } catch (error: any) {
-        console.log(error)
-        reply.code(500).send({message: "Erro ao buscar ou inserir no banco de dados!"})
-      }
-      console.log("cheguei")
-      reply.send(null).status(201);
-    }
+    userController.createUser.bind(userController)
   );
 
   // Altera o registro - Update
@@ -190,41 +121,17 @@ export async function userRoutes(server: FastifyInstance) {
           properties: {
             name: { type: "string" },
             email: { type: "string" },
-          }
+          },
         },
         response: {
           204: {
-            description: "Usuário modificado com sucesso"
-          }
-        }
-      }
+            description: "No content",
+            type: "null",
+          },
+        },
+      },
     },
-    async (
-      request: FastifyRequest<{
-        Params: Pick<User, "id">;
-        Body: UserUpdate;
-      }>,
-      reply: FastifyReply
-    ) => {
-      const { id } = request.params;
-      const { name, email } = request.body;
-
-      try {
-        const user = await prisma.user.update({
-          where: { id: Number(id) },
-          data: { name, email },
-        });
-
-        reply.code(200).send({ message: "Usuário alterado com sucesso!" });
-      } catch (error: any) {
-        let cause: string =
-          error?.meta?.cause ||
-          "Erro ao bucar ou alterar informação no banco de dados";
-        reply.code(400).send({
-          message: `Erro ao alterar o registro do usuário, erro: ${cause}`,
-        });
-      }
-    }
+    userController.updateUser.bind(userController)
   );
 
   server.delete(
@@ -236,33 +143,12 @@ export async function userRoutes(server: FastifyInstance) {
         description: "Deleta o registro do usuário no banco de dados",
         response: {
           204: {
-            description: "Usuário deletado com sucesso"
-          }
-        }
-      }
-    },
-    async (
-      request: FastifyRequest<{
-        Params: Pick<User, "id">;
-      }>,
-      reply: FastifyReply
-    ) => {
-      const { id } = request.params;
-      // delete retorna os dados do usuário que foi excluído
-      try {
-        const user = await prisma.user.delete({
-          where: {
-            id: Number(id),
+            description: "No content",
+            type: "null",
           },
-        });
-        
-        reply.code(204).send();
-      } catch (error: any) {
-        let cause: string = error?.meta?.cause || "Erro ao bucar ou alterar informação no banco de dados";
-        reply.code(500).send({
-          message: `Erro ao alterar o registro do usuário, erro: ${cause}`,
-        });
-      }
-    }
+        },
+      },
+    },
+    userController.deleteUser.bind(userController)
   );
 }
