@@ -1,4 +1,4 @@
-import Fastify, { FastifyReply, FastifyRequest } from "fastify";
+import Fastify from "fastify";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
 import { fastifyCors } from "@fastify/cors";
@@ -13,21 +13,6 @@ const URL = "127.0.0.1";
 const PORT = 3000;
 
 // Your code here
-const envToLogger = {
-  development: {
-    level: "error",
-    file: "./logs/error.log",
-    transport: {
-      target: "pino-pretty",
-      options: {
-        translateTime: "HH:MM:ss Z",
-        ignore: "pid,hostname",
-      },
-    },
-  },
-  production: true, // true
-  test: false,
-};
 
 // Cria os arquivos na pasta logs
 const server = Fastify({
@@ -54,10 +39,12 @@ const server = Fastify({
   },
 });
 
+server.register(logger);
+
 server.register(fastifyCors, {
   origin: ["*", `http://${URL}`],
 });
-server.register(logger);
+
 server.register(fastifySwagger, {
   openapi: {
     openapi: "3.0.0",
@@ -85,9 +72,13 @@ server.register(fastifySwagger, {
     // exposeRoute: true,
   },
 });
-server.register(fastifySwaggerUi, {
-  routePrefix: "/docs",
-});
+
+if (process.env.APP_ENV?.includes("development")) {
+  // Show swagger UI when in development
+  server.register(fastifySwaggerUi, {
+    routePrefix: "/docs",
+  });
+}
 
 // Adição dos schemas
 server.addSchema(schemaAPIResponseError);
