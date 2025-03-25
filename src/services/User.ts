@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { z } from "zod"
 
 
 export interface User {
@@ -7,12 +8,27 @@ export interface User {
   email: string;
 }
 
+const UserObject = z.object({
+  id: z.coerce.number().optional(),
+  name: z.string().optional(),
+  email: z.string().optional(),
+})
+
 export class UserService {
   private prisma: PrismaClient;
   public user = null
   
   constructor(){
     this.prisma = new PrismaClient();
+  }
+
+  async Get<T extends Record<string, any>>(kwargs: T) {
+    if (Object.keys(kwargs).length <= 0) return null;
+    const data = UserObject.parse(kwargs);
+    
+    return await this.prisma.user.findMany({
+      where: data
+    });
   }
 
   async getUser(pk: number): Promise<User | null> {

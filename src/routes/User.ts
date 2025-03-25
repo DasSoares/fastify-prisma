@@ -1,8 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { PrismaClient } from "@prisma/client";
-import UserDB from "../controllers/UserDB";
 import { schemaUser, schemaUsers } from "../schemas/User";
-import { UserController } from "../controllers/User";
+import { UserController, StatusClient } from "../controllers/User";
 
 // your code here
 const schema = {
@@ -42,6 +41,11 @@ export async function userRoutes(server: FastifyInstance) {
           properties: {
             limit: { type: "number" },
             page: { type: "number" },
+            status: {
+              type: 'string',
+              enum: Object.keys(StatusClient), // Define o select com opções fixas
+              description: 'Status do usuário',
+            },
           },
         },
         response: {

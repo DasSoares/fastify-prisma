@@ -1,6 +1,11 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { UserService, User as IUser } from "../services/User";
 
+export enum StatusClient {
+  INACTIVE = "inactive",
+  ACTIVE = "active",
+}
+
 export class UserController {
   private userService: UserService;
   constructor() {
@@ -12,6 +17,7 @@ export class UserController {
       Querystring: {
         limit: number;
         page: number;
+        status: StatusClient,
       };
     }>,
     reply: FastifyReply
@@ -45,13 +51,14 @@ export class UserController {
   async createUser(
     request: FastifyRequest<{ Body: Omit<IUser, "id"> }>,
     reply: FastifyReply
-  ){
+  ) {
     try {
-      await this.userService.createUser(request.body)
+      await this.userService.createUser(request.body);
       return reply.code(201).send();
     } catch (error: any) {
-      error.message = error?.meta?.cause || "Erro ao inserir os dados do usuário no banco";
-      throw error
+      error.message =
+        error?.meta?.cause || "Erro ao inserir os dados do usuário no banco";
+      throw error;
     }
   }
 
@@ -63,11 +70,11 @@ export class UserController {
     reply: FastifyReply
   ) {
     try {
-      await this.userService.updateUser({...request.params,...request.body})
-      return reply.code(200).send({message: "Usuário alterado com sucesso!"})
+      await this.userService.updateUser({ ...request.params, ...request.body });
+      return reply.code(200).send({ message: "Usuário alterado com sucesso!" });
     } catch (error: any) {
       error.message = error?.meta?.cause || "";
-      throw error
+      throw error;
     }
   }
 
